@@ -17,7 +17,7 @@ public class TestApiApplication {
 	
 	@RequestMapping("/status")
     public String healthCheck() {
-        return "Akronym Secure API is up and running";
+        return "Akronym Secure API is up and running: Testing build pipeline";
     }
 
 }
