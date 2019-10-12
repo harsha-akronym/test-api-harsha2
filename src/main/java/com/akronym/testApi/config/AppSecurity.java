@@ -11,6 +11,12 @@ public class AppSecurity extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(HttpSecurity httpSecurity) throws Exception {
-    	httpSecurity.requiresChannel().anyRequest().requiresSecure();
+    	httpSecurity
+        .requiresChannel().anyRequest().requiresSecure()
+        .and()
+        .csrf().disable()
+        .authorizeRequests()
+        .antMatchers("/**")
+        .permitAll();
     }
 }
