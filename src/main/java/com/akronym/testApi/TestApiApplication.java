@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@SpringBootApplication(exclude = { SecurityAutoConfiguration.class })
+@SpringBootApplication
 @RestController
 public class TestApiApplication {
 
@@ -18,7 +18,7 @@ public class TestApiApplication {
 	
 	@RequestMapping("/status")
     public String healthCheck() {
-        return "Akronym Secure API is up and running: Testing build pipeline 2: ELB connected";
+        return "Akronym Secure API is up and running: Testing build pipeline 2: ELB connected : HTTPS enabled";
     }
 
 }
