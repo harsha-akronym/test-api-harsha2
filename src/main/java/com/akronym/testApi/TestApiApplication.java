@@ -18,7 +18,7 @@ public class TestApiApplication {
 	
 	@RequestMapping("/status")
     public String healthCheck() {
-        return "Akronym Secure API is up and running: Testing build pipeline 2: ELB connected : HTTPS enabled: Testing Private Subnet multiple EC2";
+        return "Akronym Secure API is up and running: Testing build pipeline 2: NLB connected : HTTPS enabled: Testing Private Subnet multiple EC2: API gatway connected.";
     }
 
 }
