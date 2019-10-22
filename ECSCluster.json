@@ -1,0 +1,208 @@
+{
+   "AWSTemplateFormatVersion": "2010-09-09",
+   "Description": "Deploy to an ECS Cluster",
+
+
+
+   "Parameters": {
+      "VPC": {
+         "Type": "List<AWS::EC2::VPC::Id>"
+      },
+      "PrivateASubnet": {
+         "Description": "ID of the Subnet the instance should be launched in, this will link the instance to the same VPC.",
+         "Type": "List<AWS::EC2::Subnet::Id>",
+         "Default": "subnet-0afe2e6a95495eb46"
+      },
+      "PrivateCSubnet": {
+         "Description": "ID of the Subnet the instance should be launched in, this will link the instance to the same VPC.",
+         "Type": "List<AWS::EC2::Subnet::Id>",
+         "Default": "subnet-0e9a5965988ee9aaf"
+      },
+      "ECSSecurityGroup": {
+         "Type": "String",
+         "Default": "sg-0da19319d3c9261dc"
+      },
+      "IamInstanceProfile": {
+         "Type": "String",
+         "Default": "ecsInstanceRole"
+      },
+      "ELBType": {
+         "Type": "String",
+         "Default": "network"
+      },
+      "ELBIpAddressType": {
+         "Type": "String",
+         "AllowedValues": [
+            "ipv4",
+            "dualstack"
+         ],
+         "Default": "ipv4"
+      },
+      "MorningApiTaskDockerImage": {
+         "Type": "String",
+         "Default": "499316192974.dkr.ecr.ap-southeast-1.amazonaws.com/akronym/testapi:latest"
+      },
+      "DeployEnv": {
+         "Type": "String",
+         "Default": "test"
+      }
+   },
+   "Resources": {
+      "ECSMainCluster": {
+         "Type": "AWS::ECS::Cluster",
+         "Properties": {
+            "ClusterName": "akronym-dev-api-cluster"
+         }
+      },
+      "ECSAutoScalingGroup": {
+         "Type": "AWS::AutoScaling::AutoScalingGroup",
+         "Properties": {
+            "VPCZoneIdentifier": ["subnet-0afe2e6a95495eb46", "subnet-0e9a5965988ee9aaf"],
+            "LaunchConfigurationName": {
+               "Ref": "ContainerHostInstances"
+            },
+            "MinSize": "1",
+            "MaxSize": "2",
+            "DesiredCapacity": "1",
+            "Tags": [
+               {
+                  "Key": "Name",
+                  "Value": "app-stack-ecs",
+                  "PropagateAtLaunch": true
+               }
+            ]
+         },
+         "CreationPolicy": {
+            "ResourceSignal": {
+               "Timeout": "PT5M"
+            }
+         },
+         "UpdatePolicy": {
+            "AutoScalingReplacingUpdate": {
+               "WillReplace": "true"
+            }
+         }
+      },
+      "ContainerHostInstances": {
+         "Type": "AWS::AutoScaling::LaunchConfiguration",
+         "Properties": {
+            "ImageId": "ami-003cb73efe1eb03cc",
+            "SecurityGroups": [
+               {
+                  "Ref": "ECSSecurityGroup"
+               }
+            ],
+            "InstanceType": "t2.medium",
+            "IamInstanceProfile": {
+               "Ref": "ECSHostEC2InstanceProfile"
+            },
+            "KeyName": "testApiEc2",
+            "UserData": {
+               "Fn::Base64": {
+                  "Fn::Join": [
+                     "",
+                     [
+                        "#!/bin/bash -xe\n",
+                        "echo ECS_CLUSTER=",
+                        {
+                           "Ref": "ECSMainCluster"
+                        },
+                        " >> /etc/ecs/ecs.config\n",
+                        "yum install -y aws-cfn-bootstrap\n",
+                        "/opt/aws/bin/cfn-signal -e $? ",
+                        "         --stack ",
+                        {
+                           "Ref": "AWS::StackName"
+                        },
+                        "         --resource ECSAutoScalingGroup ",
+                        "         --region ",
+                        {
+                           "Ref": "AWS::Region"
+                        },
+                        "\n"
+                     ]
+                  ]
+               }
+            }
+         }
+      },
+      "ECSHostEC2InstanceProfile": {
+         "Type": "AWS::IAM::InstanceProfile",
+         "Properties": {
+            "Path": "/",
+            "Roles": [
+               {
+                  "Ref": "IamInstanceProfile"
+               }
+            ]
+         }
+      },
+      "MorningApiService": {
+         "Type": "AWS::ECS::Service",
+         "Properties": {
+            "Cluster": {
+               "Ref": "ECSMainCluster"
+            },
+            "DesiredCount": 2,
+            "DeploymentConfiguration": {
+               "MinimumHealthyPercent": 50
+            },
+            "TaskDefinition": {
+               "Ref": "MorningApiTask"
+            }
+         }
+      },
+      "MorningApiTask": {
+         "Type": "AWS::ECS::TaskDefinition",
+         "Properties": {
+            "Family": "app-stack-morning-api",
+            "ContainerDefinitions": [
+               {
+                  "Name": "app-stack-morning-api",
+                  "Essential": "true",
+                  "Image": {
+                     "Ref": "MorningApiTaskDockerImage"
+                  },
+                  "LogConfiguration": {
+                     "LogDriver": "awslogs",
+                     "Options": {
+                        "awslogs-group": {
+                           "Ref": "MorningApiLogsGroup"
+                        },
+                        "awslogs-region": {
+                           "Ref": "AWS::Region"
+                        },
+                        "awslogs-stream-prefix": "morning-api",
+                        "awslogs-datetime-format": "%Y-%m-%d %H:%M:%S.%L"
+                     }
+                  },
+                  "PortMappings": [
+                     {
+                        "ContainerPort": 80,
+                        "HostPort": 80,
+                        "Protocol": "tcp"
+                     }
+                  ],
+                  "Memory" : 500,
+                  "MemoryReservation" : 500,
+                  "Environment": [
+                     {
+                        "Name": "DEPLOY_ENV",
+                        "Value": {
+                           "Ref": "DeployEnv"
+                        }
+                     }
+                  ]
+               }
+            ]
+         }
+      },
+      "MorningApiLogsGroup": {
+         "Type": "AWS::Logs::LogGroup",
+         "Properties": {
+            "LogGroupName": "app-stack-morning-api",
+            "RetentionInDays": 14
+         }
+      }
+   }
+}

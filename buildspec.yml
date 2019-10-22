@@ -26,6 +26,12 @@ phases:
       - echo Pushing the Docker images...
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - |-
+        echo "{ \"Parameters\" : { \"MasterSecretArn\" : \"$SECRET_ARN_DEV\", \"MasterSecretsManagerKey\" : \"$SECRET_MANAGER_KEY\", \"Stage\" : \"dev\" } }" > sample-configuration-dev.json
+        echo "{ \"Parameters\" : { \"MasterSecretArn\" : \"$SECRET_ARN_PROD\", \"MasterSecretsManagerKey\" : \"$SECRET_MANAGER_KEY\", \"Stage\" : \"prod\" } }" > sample-configuration-prod.json
 artifacts:
   files:
     - imageDetail.json
+    - ECSCluster.json
+    - sample-configuration-dev.json
+    - sample-configuration-prod.json
